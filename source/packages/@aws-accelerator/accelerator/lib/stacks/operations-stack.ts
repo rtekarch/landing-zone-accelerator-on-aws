@@ -914,7 +914,7 @@ export class OperationsStack extends AcceleratorStack {
   private createStackSetExecutionRole(managementAccountId: string) {
     this.logger.info(`Creating StackSet Execution Role`);
     new cdk.aws_iam.Role(this, 'StackSetExecutionRole', {
-      roleName: 'AWSCloudFormationStackSetExecutionRole',
+      roleName: 'AWSCloudFormationStackSetExecutionRole2',
       assumedBy: new cdk.aws_iam.AccountPrincipal(managementAccountId),
       description: 'Used to deploy StackSets',
       managedPolicies: [cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess')],
