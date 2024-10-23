@@ -35,7 +35,6 @@ import {
   SecurityHubEventsLog,
 } from '@aws-accelerator/constructs';
 import * as cdk_extensions from '@aws-cdk-extensions/cdk-extensions';
-import * as cr from 'aws-cdk-lib/custom-resources';
 
 import {
   AcceleratorKeyType,
@@ -477,8 +476,14 @@ export class SecurityResourcesStack extends AcceleratorStack {
         ? this.isIncluded(this.props.securityConfig.awsConfig.deploymentTargets)
         : true)
     ) {
+      // declaring variable here as this value is called twice and synth can run into duplicate construct name error
       const configRecorderRoleArn = this.createConfigRecorderRole();
-
+      /**
+       * These resources are deprecated
+       * They eventually will be removed and only
+       * the custom resource will remain
+       * 3/30/2023
+       */
       if (!this.props.securityConfig.awsConfig.overrideExisting) {
         this.configRecorder = new cdk.aws_config.CfnConfigurationRecorder(this, 'ConfigRecorder', {
           roleArn: configRecorderRoleArn,
@@ -488,42 +493,12 @@ export class SecurityResourcesStack extends AcceleratorStack {
           },
         });
 
-        // Check if delivery channel exists
-        const deliveryChannelExists = new cdk.aws_config.CfnDeliveryChannel.exists(this, 'DeliveryChannelExists');
-
-        if (!deliveryChannelExists) {
-          this.deliveryChannel = new cdk.aws_config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
-            s3BucketName: `${this.centralLogsBucketName}`,
-            configSnapshotDeliveryProperties: {
-              deliveryFrequency: 'One_Hour',
-            },
-          });
-
-          // Add a wait condition for the delivery channel
-          const waitCondition = new cdk.aws_cloudformation.CfnWaitCondition(this, 'DeliveryChannelWaitCondition', {
-            count: 1,
-            timeout: '300', // 5 minutes timeout
-          });
-
-          const waitHandle = new cdk.aws_cloudformation.CfnWaitConditionHandle(this, 'DeliveryChannelWaitHandle');
-
-          // Use a custom resource to signal the wait condition when the delivery channel is ready
-          new cr.AwsCustomResource(this, 'SignalDeliveryChannelReady', {
-            onUpdate: {
-              service: 'Config',
-              action: 'describeDeliveryChannels',
-              parameters: {},
-              physicalResourceId: cr.PhysicalResourceId.of('DeliveryChannelReadySignal'),
-            },
-            policy: cr.AwsCustomResourcePolicy.fromSdkCalls({resources: cr.AwsCustomResourcePolicy.ANY_RESOURCE}),
-          }).node.addDependency(this.deliveryChannel);
-
-          // Signal the wait condition handle when the custom resource is complete
-          new cdk.aws_cloudformation.CfnWaitConditionHandle(this, 'SignalWaitHandle').addDependency(waitHandle);
-
-          // Make sure subsequent resources depend on the wait condition
-          this.node.addDependency(waitCondition);
-        }
+        this.deliveryChannel = new cdk.aws_config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
+          s3BucketName: `${this.centralLogsBucketName}`,
+          configSnapshotDeliveryProperties: {
+            deliveryFrequency: 'One_Hour',
+          },
+        });
       }
 
       if (this.props.securityConfig.awsConfig.overrideExisting) {
